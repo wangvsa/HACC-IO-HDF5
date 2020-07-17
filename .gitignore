@@ -52,5 +52,5 @@ Mkfile.old
 dkms.conf
 
 # data files
-.h5
-.mpi
+*.h5
+*.mpi
