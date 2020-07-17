@@ -9,8 +9,8 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define KB          (1024)
-#define MB          (1024*1024)
+#define KB          (1024L)
+#define MB          (1024L*1024L)
 #define FILENAME "./data.mpi"
 #define NUM_VARS 9
 
@@ -161,20 +161,15 @@ int main(int argc, char **argv)
 
     int interleaved = 0;
     if (strcmp(argv[1], "-i") == 0) interleaved = 1;
-    BUF_SIZE_PER_VAR = atoi(argv[2]) * MB;
-    if(mpi_rank==0) {
-        printf("buf size per var: %ld\n", BUF_SIZE_PER_VAR);
-        printf("%lu\n", sizeof(size_t));
-    }
 
-    /*
+    BUF_SIZE_PER_VAR = atoi(argv[2]) * MB;
+
     int start_offset = 0;
-    if(mpi_rank == 0) printf("start offset: %dKB\n", start_offset/KB);
+    if(mpi_rank == 0) printf("start offset: %ldKB\n", start_offset/KB);
     if(interleaved)
         write_interleaved(start_offset, mpi_rank, mpi_size);
     else
         write_contiguous(start_offset, mpi_rank, mpi_size);
-    */
 
     MPI_Finalize();
     return 0;

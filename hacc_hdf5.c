@@ -13,13 +13,13 @@
 
 #define RANK        1
 #define COLL_META   0
-#define KB          (1*1024)
-#define MB          (1024*1024)
+#define KB          (1*1024L)
+#define MB          (1024L*1024L)
 
 
 
-int64_t BUF_SIZE_PER_VAR;                               // Total file size for one variable
-int64_t NUM_DOUBLES_PER_VAR;                            // Number of doubles for one variable
+size_t BUF_SIZE_PER_VAR;                               // Total file size for one variable
+size_t NUM_DOUBLES_PER_VAR;                            // Number of doubles for one variable
 
 int NUM_VARS  = 9;                                      // Number of variables, currently is 9 like Generic IO.
 char *filename = "./data.h5";
