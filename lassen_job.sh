@@ -9,7 +9,7 @@
 N=10
 VAR_SIZE=8192
 
-cd /p/gpfs1/wang116/sources/HACC_CHEN
+cd /p/gpfs1/wang116/sources/HACC-IO-HDF5
 
 echo "mpi -i"
 for i in $(seq 1 $N)
@@ -25,7 +25,6 @@ do
     lrun -n 1024 ./hacc_mpiio.out -c 8192
 done
 
-: '
 echo "hdf5 -i"
 for i in $(seq 1 $N)
 do
@@ -46,4 +45,3 @@ do
     rm -f ./data.h5
     lrun -n 1024 ./hacc_hdf5.out -m 8192
 done
-'

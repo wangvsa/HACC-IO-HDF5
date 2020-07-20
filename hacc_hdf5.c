@@ -105,18 +105,22 @@ hid_t get_fapl_id() {
         H5Pset_all_coll_metadata_ops(fapl_id, 1 );
     }
 
-    //H5Pset_meta_block_size(fapl_id, 8*MB);
+    H5Pset_meta_block_size(fapl_id, 8*MB);
     // Use the latest file format
     //H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+    //
+    const char* collective = (getenv("HACC_CHEN_COLLECTIVE"));
 
     MPI_Info info;
     MPI_Info_create(&info);
-    //MPI_Info_set(info, "romio_cb_read", "enable");
-    //MPI_Info_set(info, "romio_cb_write", "enable");
+    if(collective==NULL) {  // make sure
+        MPI_Info_set(info, "romio_cb_read", "disable");
+        MPI_Info_set(info, "romio_cb_write", "disable");
+    }
     MPI_Info_set(info, "romio_ds_read", "disable");
     MPI_Info_set(info, "romio_ds_write", "disable");
     //MPI_Info_set(info, "romio_lustre_ds_in_coll", "disable");
-    //MPI_Info_set(info, "ind_rd_buffer_size", "33554432");
+    //MPI_Info_set(info, "ind_wr_buffer_size", "33554432");
     //MPI_Info_set(info, "cb_buffer_size", "536870912");
     H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, info);
     //H5Pset_fapl_split(fapl_id, "-meta.h5", mpio_fapl_id, "-raw.h5", mpio_fapl_id);
@@ -243,10 +247,11 @@ void hacc_hdf5_with_compound_type(int mpi_rank, int mpi_size) {
     // Write data independently
     H5Dwrite(dset_id, Hmemtype, mem_space_id, file_space_id, dxfer_plist_id, Hdata);
     H5Dclose(dset_id);
+    //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     write_tend = MPI_Wtime();
-    H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     free(Hdata);
 
+    /*
     // 5. Read data
     hacc_t* readdata = (hacc_t*) malloc(BUF_SIZE_PER_RANK);
     read_tstart = MPI_Wtime();
@@ -267,6 +272,7 @@ void hacc_hdf5_with_compound_type(int mpi_rank, int mpi_size) {
     read_tend = MPI_Wtime();
     H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     free(readdata);
+    */
 
     // Close resources
     H5Sclose(mem_space_id);
@@ -386,11 +392,12 @@ void hacc_hdf5_with_seperate_dataset(int mpi_rank, int mpi_size, bool multi) {
         H5Dclose(dset_id);
     }
     //print_io_stat(mpi_rank, mpi_size);
+    //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     write_tend = MPI_Wtime();
-    H5Fflush(file_id, H5F_SCOPE_GLOBAL);
-
-    MPI_Barrier(MPI_COMM_WORLD);
     free(writedata);
+
+    /*
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // 4. read the data
     double *readdata = (double*) malloc(BUF_SIZE_PER_VAR * NUM_VARS / mpi_size);
@@ -416,6 +423,7 @@ void hacc_hdf5_with_seperate_dataset(int mpi_rank, int mpi_size, bool multi) {
     read_tend = MPI_Wtime();
     H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     free(readdata);
+    */
 
     H5Pclose(dxfer_plist_id);
     H5Sclose(mem_space_id);
