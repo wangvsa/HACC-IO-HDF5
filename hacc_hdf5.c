@@ -105,10 +105,9 @@ hid_t get_fapl_id() {
         H5Pset_all_coll_metadata_ops(fapl_id, 1 );
     }
 
-    H5Pset_meta_block_size(fapl_id, 8*MB);
+    H5Pset_meta_block_size(fapl_id, 32*MB);
     // Use the latest file format
     //H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
-    //
     const char* collective = (getenv("HACC_CHEN_COLLECTIVE"));
 
     MPI_Info info;
@@ -230,7 +229,7 @@ void hacc_hdf5_with_compound_type(int mpi_rank, int mpi_size) {
     hid_t dxfer_plist_id = get_dxfer_plist_id();
 
     // 4. Write the data
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
     write_tstart = MPI_Wtime();
     dset_id = H5Dopen(file_id, "ALLVAR", H5P_DEFAULT);
 
@@ -350,10 +349,7 @@ void hacc_hdf5_with_seperate_dataset(int mpi_rank, int mpi_size, bool multi) {
     } else {
         create_multi_dataset(file_id, mpi_size);
     }
-    //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
-    //H5Fclose(file_id);
-
-    //file_id = open_hdf5_file(filename);
+    // H5Fflush(file_id, H5F_SCOPE_GLOBAL);
 
     // 2. Initialize the data for writing
     size_t NUM_DOUBLES_PER_VAR_PER_RANK = NUM_DOUBLES_PER_VAR / mpi_size;
@@ -370,31 +366,41 @@ void hacc_hdf5_with_seperate_dataset(int mpi_rank, int mpi_size, bool multi) {
     mem_space_id = H5Screate_simple(1, mem_dims, NULL);
     file_space_id = H5Screate_simple(1, file_dims, NULL);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    write_tstart = MPI_Wtime();
+    hid_t dset_ids[NUM_VARS];
+    hid_t mem_space_ids[NUM_VARS], file_space_ids[NUM_VARS];
     for (i = 0; i < NUM_VARS; i++) {
+        dset_ids[i] = H5Dopen(file_id, DATASETNAME[i], H5P_DEFAULT);
 
-        dset_id = H5Dopen(file_id, DATASETNAME[i], H5P_DEFAULT);
+        mem_space_ids[i] = H5Screate_simple(1, mem_dims, NULL);
+        file_space_ids[i] = H5Screate_simple(1, file_dims, NULL);
 
         // Select column of elements in the file dataset
         file_start[0] = mpi_rank * NUM_DOUBLES_PER_VAR_PER_RANK;
         file_count[0] = NUM_DOUBLES_PER_VAR_PER_RANK;
-        H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, file_start, NULL, file_count, NULL);
+        H5Sselect_hyperslab(file_space_ids[i], H5S_SELECT_SET, file_start, NULL, file_count, NULL);
 
         // Select all elements in the memory buffer
         mem_start[0] = i * NUM_DOUBLES_PER_VAR_PER_RANK;
         mem_count[0] = NUM_DOUBLES_PER_VAR_PER_RANK;
-        H5Sselect_hyperslab(mem_space_id, H5S_SELECT_SET, mem_start, NULL, mem_count, NULL);
+        H5Sselect_hyperslab(mem_space_ids[i], H5S_SELECT_SET, mem_start, NULL, mem_count, NULL);
+    }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    write_tstart = MPI_Wtime();
+    for (i = 0; i < NUM_VARS; i++) {
         // Write data independently
-        H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, mem_space_id, file_space_id, dxfer_plist_id, writedata);
-
-        H5Dclose(dset_id);
+        H5Dwrite(dset_ids[i], H5T_NATIVE_DOUBLE, mem_space_ids[i], file_space_ids[i], dxfer_plist_id, writedata);
     }
     //print_io_stat(mpi_rank, mpi_size);
     //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     write_tend = MPI_Wtime();
     free(writedata);
+    for (i = 0; i < NUM_VARS; i++) {
+        H5Dclose(dset_ids[i]);
+        H5Sclose(mem_space_ids[i]);
+        H5Sclose(file_space_ids[i]);
+    }
+
 
     /*
     MPI_Barrier(MPI_COMM_WORLD);
@@ -448,8 +454,12 @@ int main(int argc, char **argv)
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
+    if(mpi_rank == 0)
+        remove(filename);
+
     BUF_SIZE_PER_VAR = atoi(argv[2]) * MB;
     NUM_DOUBLES_PER_VAR = BUF_SIZE_PER_VAR / sizeof(double);
+
 
     if (strcmp(argv[1], "-i") == 0)
         hacc_hdf5_with_seperate_dataset(mpi_rank, mpi_size, false);
@@ -465,7 +475,7 @@ int main(int argc, char **argv)
     MPI_Reduce(&write_tend, &min_tend, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
     MPI_Reduce(&write_tend, &max_tend, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     if(mpi_rank == 0) {
-        printf("min tstart: %f max tstart: %f min tend: %f max tend: %f\n", min_tstart, max_tstart, min_tend, max_tend);
+        //printf("min tstart: %f max tstart: %f min tend: %f max tend: %f\n", min_tstart, max_tstart, min_tend, max_tend);
         total_time = max_tend - min_tstart;
         writebw = BUF_SIZE_PER_VAR*NUM_VARS/total_time/MB;
     }
@@ -473,7 +483,6 @@ int main(int argc, char **argv)
     MPI_Reduce(&read_tstart, &min_tstart, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
     MPI_Reduce(&read_tend, &max_tend, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     if(mpi_rank == 0) {
-        total_time = max_tend - min_tstart;
         printf("Total time: %f, Aggragated Write Bandwidth: %fMB/s\tRead Bandwidth: %fMB/s\n", total_time, writebw, BUF_SIZE_PER_VAR*NUM_VARS/total_time/MB);
     }
 
