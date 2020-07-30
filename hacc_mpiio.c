@@ -66,7 +66,6 @@ void write_contiguous(size_t start_offset, int mpi_rank, int mpi_size)
 
     MPI_File_open(MPI_COMM_WORLD, FILENAME, MPI_MODE_CREATE|MPI_MODE_WRONLY, info, &fh);
 
-    // Each process has a contiuous write.
     MPI_Barrier(MPI_COMM_WORLD);
     double write_tstart = MPI_Wtime();
     mpi_off = start_offset+BUF_SIZE_PER_VAR/mpi_size * mpi_rank; // position of the first variable
@@ -111,8 +110,8 @@ void write_interleaved(size_t start_offset, int mpi_rank, int mpi_size)
     MPI_Info_create(&info);
     MPI_Info_set(info,"romio_ds_read","disable");
     MPI_Info_set(info,"romio_ds_write","disable");
-    MPI_Info_set(info, "romio_cb_read", "disable");
-    MPI_Info_set(info, "romio_cb_write", "disable");
+    //MPI_Info_set(info, "romio_cb_read", "disable");
+    //MPI_Info_set(info, "romio_cb_write", "disable");
 
 
     NUM_DOUBLES_PER_VAR_PER_RANK = BUF_SIZE_PER_VAR / mpi_size / sizeof(double);
@@ -158,7 +157,7 @@ int main(int argc, char **argv)
 {
 
     int mpi_size, mpi_rank;
-    int i;
+    int i, j;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -169,19 +168,19 @@ int main(int argc, char **argv)
 
     BUF_SIZE_PER_VAR = atoi(argv[2]) * MB;
 
-    size_t offsets[] = {0, 32*MB};
-    //if(mpi_rank == 0) printf("start offset: %ldKB\n", start_offset/KB);
-    for(i = 0; i < 2; i++) {
-        size_t start_offset = offsets[i];
-        if(mpi_rank == 0)
-            printf("offset: %ld\n", start_offset);
+    //remove(FILENAME);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
-            if(mpi_rank == 0)
-                remove(FILENAME);
-            if(interleaved)
-                write_interleaved(start_offset, mpi_rank, mpi_size);
-            else
-                write_contiguous(start_offset, mpi_rank, mpi_size);
+    size_t start_offsets[] = {0, 2*KB, 8*KB, 4*MB, 8*MB, 32*MB, 128*MB};
+    for(i = 0; i < sizeof(start_offsets)/sizeof(size_t); i++) {
+        size_t start_offset = start_offsets[i];
+        if(mpi_rank == 0)
+            printf("offset: %d\n", start_offset);
+
+        if(interleaved)
+            write_interleaved(start_offset, mpi_rank, mpi_size);
+        else
+            write_contiguous(start_offset, mpi_rank, mpi_size);
     }
 
     MPI_Finalize();

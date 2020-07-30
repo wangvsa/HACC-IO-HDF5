@@ -1,4 +1,5 @@
 HDF5_DIR=$(HDF5_HOME)
+HDF5_DIR=/g/g90/wang116/sources/hdf5_with_multi/install-impi-2018
 
 CC=mpicc
 

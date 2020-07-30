@@ -105,7 +105,7 @@ hid_t get_fapl_id() {
         H5Pset_all_coll_metadata_ops(fapl_id, 1 );
     }
 
-    H5Pset_meta_block_size(fapl_id, 32*MB);
+    H5Pset_meta_block_size(fapl_id, 8*MB);
     // Use the latest file format
     //H5Pset_libver_bounds(fapl_id, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
     const char* collective = (getenv("HACC_CHEN_COLLECTIVE"));
@@ -230,7 +230,6 @@ void hacc_hdf5_with_compound_type(int mpi_rank, int mpi_size) {
 
     // 4. Write the data
     // MPI_Barrier(MPI_COMM_WORLD);
-    write_tstart = MPI_Wtime();
     dset_id = H5Dopen(file_id, "ALLVAR", H5P_DEFAULT);
 
     // Select column of elements in the file dataset
@@ -244,10 +243,13 @@ void hacc_hdf5_with_compound_type(int mpi_rank, int mpi_size) {
     H5Sselect_hyperslab(mem_space_id, H5S_SELECT_SET, mem_start, NULL, mem_count, NULL);
 
     // Write data independently
+    MPI_Barrier(MPI_COMM_WORLD);
+    write_tstart = MPI_Wtime();
     H5Dwrite(dset_id, Hmemtype, mem_space_id, file_space_id, dxfer_plist_id, Hdata);
-    H5Dclose(dset_id);
-    //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
     write_tend = MPI_Wtime();
+
+    //H5Fflush(file_id, H5F_SCOPE_GLOBAL);
+    H5Dclose(dset_id);
     free(Hdata);
 
     /*
@@ -454,12 +456,8 @@ int main(int argc, char **argv)
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    if(mpi_rank == 0)
-        remove(filename);
-
     BUF_SIZE_PER_VAR = atoi(argv[2]) * MB;
     NUM_DOUBLES_PER_VAR = BUF_SIZE_PER_VAR / sizeof(double);
-
 
     if (strcmp(argv[1], "-i") == 0)
         hacc_hdf5_with_seperate_dataset(mpi_rank, mpi_size, false);

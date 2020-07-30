@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -N 4
-#SBATCH -n 16
+#SBATCH -n 128
 #SBATCH -t 00:10:00
 #SBATCH -p pdebug
 #SBATCH --job-name="HACC"
@@ -15,7 +15,13 @@ export I_MPI_EXTRA_FILESYSTEM_LIST=lustre
 
 
 N=10
-VARIABLE_SIZE=128
+VARIABLE_SIZE=1024
+
+rm -f ./data.h5*
+lfs setstripe -c 4 -S 128M ./data.mpi
+srun ./hacc_mpiio.out -i $VARIABLE_SIZE
+#LD_PRELOAD=/g/g90/wang116/sources/Recorder/lib/librecorder.so srun ./hacc_hdf5.out -i $VARIABLE_SIZE
+
 
 : '
 # Try to find the best stripe size
@@ -87,13 +93,6 @@ do
     done
 done
 '
-
-
-rm -f ./data.h5*
-lfs setstripe -c 4 -S 128M ./data.h5 ./data.h5-raw.h5 ./data.h5-meta.h5
-srun ./hacc_hdf5.out -i $VARIABLE_SIZE
-#LD_PRELOAD=/g/g90/wang116/sources/Recorder/lib/librecorder.so srun ./hacc_hdf5.out -i $VARIABLE_SIZE
-
 
 # Find the best chunk size
 # each dataset has 100*1024*1024/8 = 13107200 doubles

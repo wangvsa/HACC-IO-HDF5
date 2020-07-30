@@ -3,7 +3,7 @@
 #SBATCH -n 1024
 #SBATCH -t 00:25:00
 #SBATCH -p pbatch
-#SBATCH --job-name="HACC"
+#SBATCH --job-name="HACC-MPI"
 
 export I_MPI_EXTRA_FILESYSTEM=on
 export I_MPI_EXTRA_FILESYSTEM_LIST=lustre
@@ -50,6 +50,7 @@ done
 
 unset HACC_CHEN_COLLECTIVE
 
+echo "-c"
 for i in $(seq 1 $N)
 do
     rm -f ./data.mpi
@@ -57,19 +58,10 @@ do
     srun ./hacc_mpiio.out -c $VARIABLE_SIZE
 done
 
+echo "-i"
 for i in $(seq 1 $N)
 do
     rm -f ./data.mpi
     lfs setstripe -c 32 -S 128M ./data.mpi
     srun ./hacc_mpiio.out -i $VARIABLE_SIZE
 done
-
-
-
-#LD_PRELOAD=/g/g90/wang116/sources/Recorder/lib/librecorder.so srun ./hacc_mpiio.out $VARIABLE_SIZE
-
-
-#export HACC_CHEN_COLLECTIVE=true
-#LD_PRELOAD=/g/g90/wang116/sources/Recorder/lib/librecorder.so srun ./hacc_mpiio.out $VARIABLE_SIZE
-#mv logs ./trans/mpiio_collective
-
